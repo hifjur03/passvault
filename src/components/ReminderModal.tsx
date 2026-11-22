@@ -53,14 +53,14 @@ export function ReminderModal({ reminder, onClose, onSave }: ReminderModalProps)
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
+          <button type="submit" form="reminder-form" className="btn btn-primary" disabled={busy}>
             {busy ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
             Save reminder
           </button>
         </>
       }
     >
-      <form className="stack" onSubmit={submit}>
+      <form id="reminder-form" className="stack" onSubmit={submit}>
         <label className="field">
           <span>Title</span>
           <input
