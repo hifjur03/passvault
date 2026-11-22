@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import {
+  ArrowLeft,
   Copy,
   Eye,
   EyeOff,
@@ -16,21 +17,16 @@ import {
 import type { Entry } from '../lib/vault'
 import { EntryModal, type EntryDraft } from './EntryModal'
 import { ConfirmModal } from './ConfirmModal'
-import { PinSetupModal } from './PinSetupModal'
-import { SettingsModal } from './SettingsModal'
 import type { ToastTone } from './Toast'
 
 interface VaultScreenProps {
-  email: string
   entries: Entry[]
-  updatedAt: string | null
-  hasPin: boolean
   onSaveEntries: (entries: Entry[]) => Promise<void>
+  onBack: () => void
   onLock: () => void
-  onSignOut: () => Promise<void>
-  onChangeMaster: (current: string, next: string) => Promise<void>
-  onSetPin: (pin: string) => Promise<void>
-  onRemovePin: () => void
+  onOpenSettings: () => void
+  onOpenPinSetup: () => void
+  hasPin: boolean
   notify: (message: string, tone?: ToastTone) => void
 }
 
@@ -55,24 +51,19 @@ async function copyToClipboard(value: string): Promise<boolean> {
 }
 
 export function VaultScreen({
-  email,
   entries,
-  updatedAt,
-  hasPin,
   onSaveEntries,
+  onBack,
   onLock,
-  onSignOut,
-  onChangeMaster,
-  onSetPin,
-  onRemovePin,
+  onOpenSettings,
+  onOpenPinSetup,
+  hasPin,
   notify,
 }: VaultScreenProps) {
   const [search, setSearch] = useState('')
   const [revealed, setRevealed] = useState<Set<string>>(new Set())
   const [editing, setEditing] = useState<Entry | null | undefined>(undefined)
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null)
-  const [showSettings, setShowSettings] = useState(false)
-  const [showPinSetup, setShowPinSetup] = useState(false)
   const clipboardTimer = useRef<number | null>(null)
 
   const filtered = useMemo(() => {
@@ -117,10 +108,7 @@ export function VaultScreen({
         entry.id === editing.id ? { ...entry, ...draft, updatedAt: now } : entry,
       )
     } else {
-      next = [
-        { id: crypto.randomUUID(), ...draft, createdAt: now, updatedAt: now },
-        ...entries,
-      ]
+      next = [{ id: crypto.randomUUID(), ...draft, createdAt: now, updatedAt: now }, ...entries]
     }
     await onSaveEntries(next)
     setEditing(undefined)
@@ -134,41 +122,20 @@ export function VaultScreen({
     notify('Entry deleted.')
   }
 
-  const openPinSetup = () => {
-    setShowSettings(false)
-    setShowPinSetup(true)
-  }
-
-  const savePin = async (pin: string) => {
-    await onSetPin(pin)
-    setShowPinSetup(false)
-    notify('Quick-unlock PIN saved on this device.')
-  }
-
-  const savedLabel = updatedAt
-    ? new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : null
-
   return (
     <div className="vault-page">
       <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark">
-            <KeyRound size={20} />
-          </span>
-          <span className="brand-name">PassVault</span>
+        <div className="topbar-left">
+          <button type="button" className="back-btn" onClick={onBack} aria-label="Back to home">
+            <ArrowLeft size={16} />
+            <span>Home</span>
+          </button>
         </div>
-        <div className="topbar-actions">
+        <div className="topbar-right">
           <button type="button" className="icon-btn" onClick={onLock} aria-label="Lock vault" title="Lock vault">
             <Lock size={18} />
           </button>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => setShowSettings(true)}
-            aria-label="Settings"
-            title="Settings"
-          >
+          <button type="button" className="icon-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings">
             <Settings size={18} />
           </button>
         </div>
@@ -201,7 +168,7 @@ export function VaultScreen({
                 password every time.
               </p>
             </div>
-            <button type="button" className="btn btn-ghost btn-small" onClick={openPinSetup}>
+            <button type="button" className="btn btn-ghost btn-small" onClick={onOpenPinSetup}>
               Set up PIN
             </button>
           </div>
@@ -306,9 +273,9 @@ export function VaultScreen({
 
         <footer className="vault-foot">
           <span>
-            <ShieldCheck size={14} /> {entries.length} {entries.length === 1 ? 'password' : 'passwords'} · end-to-end encrypted
+            <ShieldCheck size={14} /> {entries.length}{' '}
+            {entries.length === 1 ? 'password' : 'passwords'} · end-to-end encrypted
           </span>
-          {savedLabel ? <span>Saved {savedLabel}</span> : null}
         </footer>
       </main>
 
@@ -323,28 +290,6 @@ export function VaultScreen({
           confirmLabel="Delete"
           onConfirm={deleteEntry}
           onClose={() => setDeleteTarget(null)}
-        />
-      ) : null}
-
-      {showSettings ? (
-        <SettingsModal
-          email={email}
-          hasPin={hasPin}
-          onChangeMaster={onChangeMaster}
-          onOpenPinSetup={openPinSetup}
-          onRemovePin={onRemovePin}
-          onLock={onLock}
-          onSignOut={onSignOut}
-          onClose={() => setShowSettings(false)}
-          notify={notify}
-        />
-      ) : null}
-
-      {showPinSetup ? (
-        <PinSetupModal
-          isChange={hasPin}
-          onSave={savePin}
-          onClose={() => setShowPinSetup(false)}
         />
       ) : null}
     </div>

@@ -30,16 +30,13 @@ const entries: Entry[] = [
 function renderVault(overrides: Partial<Parameters<typeof VaultScreen>[0]> = {}) {
   return render(
     <VaultScreen
-      email="me@example.com"
       entries={entries}
-      updatedAt="2026-01-02T00:00:00.000Z"
-      hasPin
       onSaveEntries={async () => {}}
+      onBack={() => {}}
       onLock={() => {}}
-      onSignOut={async () => {}}
-      onChangeMaster={async () => {}}
-      onSetPin={async () => {}}
-      onRemovePin={() => {}}
+      onOpenSettings={() => {}}
+      onOpenPinSetup={() => {}}
+      hasPin
       notify={() => {}}
       {...overrides}
     />,
@@ -52,7 +49,7 @@ describe('VaultScreen', () => {
     expect(screen.getByText('Gmail')).toBeTruthy()
     expect(screen.getByText('GitHub')).toBeTruthy()
     expect(screen.queryByText('hunter2')).toBeNull()
-    expect(screen.getByText('2 passwords · end-to-end encrypted')).toBeTruthy()
+    expect(screen.getByText(/2 passwords · end-to-end encrypted/)).toBeTruthy()
   })
 
   it('filters entries with the search box', () => {
@@ -81,5 +78,15 @@ describe('VaultScreen', () => {
   it('shows an empty state when nothing is saved', () => {
     renderVault({ entries: [] })
     expect(screen.getByText('No passwords yet')).toBeTruthy()
+  })
+
+  it('offers PIN setup when no PIN is configured', () => {
+    renderVault({ hasPin: false })
+    expect(screen.getByText('Set up PIN')).toBeTruthy()
+  })
+
+  it('renders the back button', () => {
+    renderVault()
+    expect(screen.getByLabelText('Back to home')).toBeTruthy()
   })
 })

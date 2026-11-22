@@ -11,8 +11,18 @@ export interface Entry {
   updatedAt: string
 }
 
+export interface Note {
+  id: string
+  title: string
+  body: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** Everything stored inside the encrypted vault. */
 export interface VaultData {
   entries: Entry[]
+  notes: Note[]
 }
 
 export interface VaultRow {

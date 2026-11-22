@@ -4,6 +4,10 @@ import { AuthScreen } from './components/AuthScreen'
 import { SetupScreen } from './components/SetupScreen'
 import { UnlockScreen } from './components/UnlockScreen'
 import { VaultScreen } from './components/VaultScreen'
+import { HomeScreen } from './components/HomeScreen'
+import { NotesScreen } from './components/NotesScreen'
+import { SettingsModal } from './components/SettingsModal'
+import { PinSetupModal } from './components/PinSetupModal'
 import { Toast, type ToastState, type ToastTone } from './components/Toast'
 import { useAutoLock } from './hooks/useAutoLock'
 import {
@@ -36,9 +40,11 @@ import {
   updateVault,
   VaultConflictError,
   type Entry,
+  type Note,
   type VaultData,
   type VaultRow,
 } from './lib/vault'
+import type { Screen } from './types'
 
 type Status =
   | 'boot'
@@ -54,13 +60,21 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [status, setStatus] = useState<Status>('boot')
   const [row, setRow] = useState<VaultRow | null>(null)
-  const [entries, setEntries] = useState<Entry[]>([])
+  const [data, setData] = useState<VaultData>({ entries: [], notes: [] })
   const [key, setKey] = useState<CryptoKey | null>(null)
   const [hasPin, setHasPin] = useState(false)
+  const [screen, setScreen] = useState<Screen>('home')
+  const [showSettings, setShowSettings] = useState(false)
+  const [showPinSetup, setShowPinSetup] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [reloadNonce, setReloadNonce] = useState(0)
   const [toast, setToast] = useState<ToastState | null>(null)
   const toastTimer = useRef<number | null>(null)
+
+  const dataRef = useRef(data)
+  useEffect(() => {
+    dataRef.current = data
+  }, [data])
 
   const notify = useCallback((message: string, tone: ToastTone = 'ok') => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current)
@@ -76,9 +90,9 @@ export default function App() {
 
     void supabase.auth
       .getSession()
-      .then(({ data }) => {
+      .then(({ data: sessionData }) => {
         if (!mounted) return
-        setSession(data.session)
+        setSession(sessionData.session)
         setAuthReady(true)
       })
       .catch(() => {
@@ -90,9 +104,10 @@ export default function App() {
       setSession(nextSession)
       if (!nextSession) {
         setKey(null)
-        setEntries([])
+        setData({ entries: [], notes: [] })
         setRow(null)
         setHasPin(false)
+        setScreen('home')
         setStatus('signedOut')
       }
     })
@@ -128,19 +143,26 @@ export default function App() {
     }
   }, [userId, reloadNonce])
 
-  const finishUnlock = useCallback(async (vaultKey: CryptoKey, vaultRow: VaultRow) => {
-    let data: VaultData = { entries: [] }
-    if (vaultRow.data && vaultRow.data_iv) {
-      data = await decryptJson<VaultData>(vaultKey, {
-        iv: vaultRow.data_iv,
-        data: vaultRow.data,
+  const finishUnlock = useCallback(
+    async (vaultKey: CryptoKey, vaultRow: VaultRow) => {
+      let vaultData: VaultData = { entries: [], notes: [] }
+      if (vaultRow.data && vaultRow.data_iv) {
+        vaultData = await decryptJson<VaultData>(vaultKey, {
+          iv: vaultRow.data_iv,
+          data: vaultRow.data,
+        })
+      }
+      setKey(vaultKey)
+      setRow(vaultRow)
+      setData({
+        entries: vaultData.entries ?? [],
+        notes: vaultData.notes ?? [],
       })
-    }
-    setKey(vaultKey)
-    setRow(vaultRow)
-    setEntries(data.entries ?? [])
-    setStatus('unlocked')
-  }, [])
+      setScreen('home')
+      setStatus('unlocked')
+    },
+    [],
+  )
 
   const unlockWithMaster = async (password: string) => {
     if (!row) throw new Error('Vault is not loaded yet.')
@@ -175,7 +197,9 @@ export default function App() {
       if (attempts >= MAX_PIN_ATTEMPTS) {
         clearPinWrap(userId)
         setHasPin(false)
-        throw new Error('Too many wrong attempts. The PIN was removed — use your master password.')
+        throw new Error(
+          'Too many wrong attempts. The PIN was removed — use your master password.',
+        )
       }
       const left = MAX_PIN_ATTEMPTS - attempts
       throw new Error(`Wrong PIN. ${left} ${left === 1 ? 'attempt' : 'attempts'} left.`)
@@ -187,23 +211,25 @@ export default function App() {
     const salt = createSalt()
     const derived = await deriveMasterKey(masterPassword, salt)
     const verifier = await createVerifier(derived)
-    const data = await encryptJson(derived, { entries: [] })
-    const created = await createVault(userId, toBase64(salt), verifier, data)
+    const initialData: VaultData = { entries: [], notes: [] }
+    const payload = await encryptJson(derived, initialData)
+    const created = await createVault(userId, toBase64(salt), verifier, payload)
     setKey(derived)
     setRow(created)
-    setEntries([])
+    setData(initialData)
+    setScreen('home')
     setStatus('unlocked')
   }
 
-  const saveEntries = useCallback(
-    async (next: Entry[]) => {
+  const saveVaultData = useCallback(
+    async (next: VaultData) => {
       if (!key || !row) throw new Error('The vault is locked.')
 
-      const data = await encryptJson(key, { entries: next })
+      const payload = await encryptJson(key, next)
       try {
-        const updated = await updateVault(row.user_id, row.version, { data })
+        const updated = await updateVault(row.user_id, row.version, { data: payload })
         setRow(updated)
-        setEntries(next)
+        setData(next)
       } catch (caught) {
         if (caught instanceof VaultConflictError) {
           const latest = await fetchVault(row.user_id)
@@ -214,9 +240,9 @@ export default function App() {
                     iv: latest.data_iv,
                     data: latest.data,
                   })
-                : { entries: [] }
+                : { entries: [] as Entry[], notes: [] as Note[] }
             setRow(latest)
-            setEntries(decrypted.entries ?? [])
+            setData(decrypted)
           }
           throw new Error(
             'This vault was changed on another device. The latest data is loaded — please try again.',
@@ -228,6 +254,16 @@ export default function App() {
     [key, row],
   )
 
+  const saveEntries = useCallback(
+    (entries: Entry[]) => saveVaultData({ ...dataRef.current, entries }),
+    [saveVaultData],
+  )
+
+  const saveNotes = useCallback(
+    (notes: Note[]) => saveVaultData({ ...dataRef.current, notes }),
+    [saveVaultData],
+  )
+
   const changeMaster = async (currentPassword: string, nextPassword: string) => {
     if (!key || !row || !userId) throw new Error('The vault is locked.')
 
@@ -236,20 +272,17 @@ export default function App() {
       fromBase64(row.salt),
       MASTER_ITERATIONS,
     )
-    const valid = await verifyKey(currentKey, {
-      iv: row.verifier_iv,
-      data: row.verifier,
-    })
+    const valid = await verifyKey(currentKey, { iv: row.verifier_iv, data: row.verifier })
     if (!valid) throw new Error('Current master password is incorrect.')
 
     const salt = createSalt()
     const nextKey = await deriveMasterKey(nextPassword, salt)
     const verifier = await createVerifier(nextKey)
-    const data = await encryptJson(nextKey, { entries })
+    const payload = await encryptJson(nextKey, dataRef.current)
     const updated = await updateVault(row.user_id, row.version, {
       salt: toBase64(salt),
       verifier,
-      data,
+      data: payload,
     })
 
     clearPinWrap(userId)
@@ -277,16 +310,18 @@ export default function App() {
     setHasPin(false)
     setKey(null)
     setRow(null)
-    setEntries([])
+    setData({ entries: [], notes: [] })
     setStatus('setup')
+    setScreen('home')
   }
 
   const signOut = async () => {
     if (userId) clearPinWrap(userId)
     setHasPin(false)
     setKey(null)
-    setEntries([])
+    setData({ entries: [], notes: [] })
     setRow(null)
+    setScreen('home')
     setStatus('signedOut')
     try {
       await supabase.auth.signOut()
@@ -297,21 +332,21 @@ export default function App() {
 
   const lock = useCallback(() => {
     setKey(null)
-    setEntries([])
+    setData({ entries: [], notes: [] })
+    setScreen('home')
     setStatus('locked')
   }, [])
+
+  const navigate = useCallback((target: Screen) => setScreen(target), [])
 
   useAutoLock(status === 'unlocked', lock)
 
   if (!isSupabaseConfigured) return <ConfigNotice />
   if (!authReady) return <Splash />
-
   if (!userId || status === 'signedOut') return <AuthScreen />
 
   if (status === 'setup') {
-    return (
-      <SetupScreen email={email} onSubmit={setupVault} onSignOut={signOut} />
-    )
+    return <SetupScreen email={email} onSubmit={setupVault} onSignOut={signOut} />
   }
 
   if (status === 'error') {
@@ -335,27 +370,6 @@ export default function App() {
     )
   }
 
-  if (status === 'unlocked') {
-    return (
-      <>
-        <VaultScreen
-          email={email}
-          entries={entries}
-          updatedAt={row?.updated_at ?? null}
-          hasPin={hasPin}
-          onSaveEntries={saveEntries}
-          onLock={lock}
-          onSignOut={signOut}
-          onChangeMaster={changeMaster}
-          onSetPin={setupPin}
-          onRemovePin={removePin}
-          notify={notify}
-        />
-        <Toast toast={toast} />
-      </>
-    )
-  }
-
   if (status === 'locked') {
     return (
       <UnlockScreen
@@ -369,7 +383,68 @@ export default function App() {
     )
   }
 
-  return <Splash />
+  // Unlocked
+  return (
+    <>
+      {screen === 'home' && (
+        <HomeScreen
+          email={email}
+          entries={data.entries}
+          notes={data.notes}
+          onNavigate={navigate}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+      )}
+      {screen === 'passwords' && (
+        <VaultScreen
+          entries={data.entries}
+          onSaveEntries={saveEntries}
+          onBack={() => setScreen('home')}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+          onOpenPinSetup={() => {
+            setShowSettings(false)
+            setShowPinSetup(true)
+          }}
+          hasPin={hasPin}
+          notify={notify}
+        />
+      )}
+      {screen === 'notes' && (
+        <NotesScreen
+          notes={data.notes}
+          onSaveNotes={saveNotes}
+          onBack={() => setScreen('home')}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+          notify={notify}
+        />
+      )}
+
+      {showSettings ? (
+        <SettingsModal
+          email={email}
+          hasPin={hasPin}
+          onChangeMaster={changeMaster}
+          onOpenPinSetup={() => {
+            setShowPinSetup(true)
+          }}
+          onRemovePin={removePin}
+          onLock={lock}
+          onSignOut={signOut}
+          onClose={() => setShowSettings(false)}
+          notify={notify}
+        />
+      ) : null}
+
+      {showPinSetup ? (
+        <PinSetupModal isChange={hasPin} onSave={setupPin} onClose={() => setShowPinSetup(false)} />
+      ) : null}
+
+      <Toast toast={toast} />
+    </>
+  )
 }
 
 function Splash() {
@@ -395,9 +470,9 @@ function ConfigNotice() {
       <div className="card setup-card">
         <h1>Connect Supabase</h1>
         <p className="muted small">
-          This build has no Supabase credentials yet. Create a project at
-          supabase.com, run <code>supabase/schema.sql</code> in the SQL editor, then add the
-          values to <code>.env.local</code>:
+          This build has no Supabase credentials yet. Create a project at supabase.com, run{' '}
+          <code>supabase/schema.sql</code> in the SQL editor, then add the values to{' '}
+          <code>.env.local</code>:
         </p>
         <pre className="code-block">{`VITE_SUPABASE_URL=https://xxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOi...`}</pre>
