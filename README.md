@@ -8,9 +8,16 @@ each account, then open it from any phone by signing in.
 - **Zero-knowledge server** — Supabase only ever stores encrypted blobs
 - **Cross-device** — email + account password sign-in, then unlock with your master password
 - **Quick unlock** — optional 6-digit PIN per device (wraps the vault key locally)
-- **Everyday features** — search, add/edit/delete, show/hide, copy (auto-clears clipboard),
-  password generator, encrypted notes, auto-lock after 5 minutes
-- **Installable** — web app manifest, works on a phone home screen
+- **Everyday features** — Home dashboard with modules, search, add/edit/delete, show/hide, copy (auto-clears clipboard),
+  password generator, encrypted notes & reminders & expenses, auto-lock after 5 minutes
+- **Installable** — web app manifest, icons and service worker, works on a phone home screen as an app.
+
+## Modules
+
+- Passwords (websites / emails / logins)
+- Notes (private)
+- Reminders (date + time, encrypted)
+- Expenses (item / category / amount, encrypted)
 
 ## How the security works
 
