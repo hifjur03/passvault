@@ -6,7 +6,7 @@ import {
   Wallet,
   KeyRound,
 } from 'lucide-react'
-import type { Entry, Note } from '../lib/vault'
+import type { Entry, Note, Reminder, Expense } from '../lib/vault'
 import type { Screen } from '../types'
 
 type HomeModuleId = 'passwords' | 'notes' | 'reminders' | 'expenses'
@@ -15,6 +15,8 @@ interface HomeScreenProps {
   email: string
   entries: Entry[]
   notes: Note[]
+  reminders: Reminder[]
+  expenses: Expense[]
   onNavigate: (screen: Screen) => void
   onLock: () => void
   onOpenSettings: () => void
@@ -40,12 +42,14 @@ export function HomeScreen({
   email,
   entries,
   notes,
+  reminders,
+  expenses,
   onNavigate,
   onLock,
   onOpenSettings,
 }: HomeScreenProps) {
   const navigateTo = (id: HomeModuleId) => {
-    if (id === 'passwords' || id === 'notes') onNavigate(id)
+    onNavigate(id)
   }
 
   const modules: Module[] = [
@@ -68,18 +72,18 @@ export function HomeScreen({
     {
       id: 'reminders',
       title: 'Reminders',
-      description: 'Coming soon',
+      description: 'Private encrypted reminders',
       icon: Bell,
-      count: 0,
-      ready: false,
+      count: reminders.length,
+      ready: true,
     },
     {
       id: 'expenses',
       title: 'Expenses',
-      description: 'Coming soon',
+      description: 'Private encrypted expenses',
       icon: Wallet,
-      count: 0,
-      ready: false,
+      count: expenses.length,
+      ready: true,
     },
   ]
 

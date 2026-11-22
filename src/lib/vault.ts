@@ -19,10 +19,34 @@ export interface Note {
   updatedAt: string
 }
 
+export interface Reminder {
+  id: string
+  title: string
+  description: string
+  date: string // YYYY-MM-DD
+  time: string // HH:mm
+  done: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Expense {
+  id: string
+  date: string // YYYY-MM-DD
+  category: string
+  item: string
+  amount: number
+  currency: string
+  createdAt: string
+  updatedAt: string
+}
+
 /** Everything stored inside the encrypted vault. */
 export interface VaultData {
   entries: Entry[]
   notes: Note[]
+  reminders: Reminder[]
+  expenses: Expense[]
 }
 
 export interface VaultRow {

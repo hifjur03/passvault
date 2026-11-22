@@ -1,1 +1,1 @@
-export type Screen = 'home' | 'passwords' | 'notes'
+export type Screen = 'home' | 'passwords' | 'notes' | 'reminders' | 'expenses'

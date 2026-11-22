@@ -6,6 +6,8 @@ import { UnlockScreen } from './components/UnlockScreen'
 import { VaultScreen } from './components/VaultScreen'
 import { HomeScreen } from './components/HomeScreen'
 import { NotesScreen } from './components/NotesScreen'
+import { RemindersScreen } from './components/RemindersScreen'
+import { ExpensesScreen } from './components/ExpensesScreen'
 import { SettingsModal } from './components/SettingsModal'
 import { PinSetupModal } from './components/PinSetupModal'
 import { Toast, type ToastState, type ToastTone } from './components/Toast'
@@ -41,10 +43,14 @@ import {
   VaultConflictError,
   type Entry,
   type Note,
+  type Reminder,
+  type Expense,
   type VaultData,
   type VaultRow,
 } from './lib/vault'
 import type { Screen } from './types'
+
+const emptyVault = (): VaultData => ({ entries: [], notes: [], reminders: [], expenses: [] })
 
 type Status =
   | 'boot'
@@ -60,7 +66,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [status, setStatus] = useState<Status>('boot')
   const [row, setRow] = useState<VaultRow | null>(null)
-  const [data, setData] = useState<VaultData>({ entries: [], notes: [] })
+  const [data, setData] = useState<VaultData>(emptyVault)
   const [key, setKey] = useState<CryptoKey | null>(null)
   const [hasPin, setHasPin] = useState(false)
   const [screen, setScreen] = useState<Screen>('home')
@@ -104,7 +110,7 @@ export default function App() {
       setSession(nextSession)
       if (!nextSession) {
         setKey(null)
-        setData({ entries: [], notes: [] })
+        setData(emptyVault())
         setRow(null)
         setHasPin(false)
         setScreen('home')
@@ -145,7 +151,7 @@ export default function App() {
 
   const finishUnlock = useCallback(
     async (vaultKey: CryptoKey, vaultRow: VaultRow) => {
-      let vaultData: VaultData = { entries: [], notes: [] }
+      let vaultData: VaultData = emptyVault()
       if (vaultRow.data && vaultRow.data_iv) {
         vaultData = await decryptJson<VaultData>(vaultKey, {
           iv: vaultRow.data_iv,
@@ -157,6 +163,8 @@ export default function App() {
       setData({
         entries: vaultData.entries ?? [],
         notes: vaultData.notes ?? [],
+        reminders: vaultData.reminders ?? [],
+        expenses: vaultData.expenses ?? [],
       })
       setScreen('home')
       setStatus('unlocked')
@@ -211,7 +219,7 @@ export default function App() {
     const salt = createSalt()
     const derived = await deriveMasterKey(masterPassword, salt)
     const verifier = await createVerifier(derived)
-    const initialData: VaultData = { entries: [], notes: [] }
+    const initialData: VaultData = emptyVault()
     const payload = await encryptJson(derived, initialData)
     const created = await createVault(userId, toBase64(salt), verifier, payload)
     setKey(derived)
@@ -240,7 +248,7 @@ export default function App() {
                     iv: latest.data_iv,
                     data: latest.data,
                   })
-                : { entries: [] as Entry[], notes: [] as Note[] }
+                : emptyVault()
             setRow(latest)
             setData(decrypted)
           }
@@ -261,6 +269,16 @@ export default function App() {
 
   const saveNotes = useCallback(
     (notes: Note[]) => saveVaultData({ ...dataRef.current, notes }),
+    [saveVaultData],
+  )
+
+  const saveReminders = useCallback(
+    (reminders: Reminder[]) => saveVaultData({ ...dataRef.current, reminders }),
+    [saveVaultData],
+  )
+
+  const saveExpenses = useCallback(
+    (expenses: Expense[]) => saveVaultData({ ...dataRef.current, expenses }),
     [saveVaultData],
   )
 
@@ -310,7 +328,7 @@ export default function App() {
     setHasPin(false)
     setKey(null)
     setRow(null)
-    setData({ entries: [], notes: [] })
+    setData(emptyVault())
     setStatus('setup')
     setScreen('home')
   }
@@ -319,7 +337,7 @@ export default function App() {
     if (userId) clearPinWrap(userId)
     setHasPin(false)
     setKey(null)
-    setData({ entries: [], notes: [] })
+    setData(emptyVault())
     setRow(null)
     setScreen('home')
     setStatus('signedOut')
@@ -332,7 +350,7 @@ export default function App() {
 
   const lock = useCallback(() => {
     setKey(null)
-    setData({ entries: [], notes: [] })
+    setData(emptyVault())
     setScreen('home')
     setStatus('locked')
   }, [])
@@ -391,6 +409,8 @@ export default function App() {
           email={email}
           entries={data.entries}
           notes={data.notes}
+          reminders={data.reminders}
+          expenses={data.expenses}
           onNavigate={navigate}
           onLock={lock}
           onOpenSettings={() => setShowSettings(true)}
@@ -415,6 +435,27 @@ export default function App() {
         <NotesScreen
           notes={data.notes}
           onSaveNotes={saveNotes}
+          onBack={() => setScreen('home')}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+          notify={notify}
+        />
+      )}
+
+      {screen === 'reminders' && (
+        <RemindersScreen
+          reminders={data.reminders}
+          onSaveReminders={saveReminders}
+          onBack={() => setScreen('home')}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+          notify={notify}
+        />
+      )}
+      {screen === 'expenses' && (
+        <ExpensesScreen
+          expenses={data.expenses}
+          onSaveExpenses={saveExpenses}
           onBack={() => setScreen('home')}
           onLock={lock}
           onOpenSettings={() => setShowSettings(true)}

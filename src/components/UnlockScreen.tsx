@@ -22,7 +22,9 @@ export function UnlockScreen({
   onResetVault,
   onSignOut,
 }: UnlockScreenProps) {
-  const [mode, setMode] = useState<Mode>(hasPin ? 'pin' : 'master')
+  // Always start with the master password; the PIN is an optional fallback
+  // that the user has to choose explicitly ("Use PIN instead").
+  const [mode, setMode] = useState<Mode>('master')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
