@@ -15,7 +15,36 @@ interface RemindersScreenProps {
 }
 
 function formatDateTime(reminder: Reminder): string {
-  return `${reminder.date} ${reminder.time}`
+  const base = `${reminder.date} ${reminder.time}`
+  const label = repeatLabel(reminder.repeat)
+  return label ? `${base} · ${label}` : base
+}
+
+function repeatLabel(repeat: Reminder['repeat']): string {
+  switch (repeat) {
+    case 'hourly':
+      return 'Hourly'
+    case 'daily':
+      return 'Daily'
+    case 'weekly':
+      return 'Weekly'
+    case 'every2':
+      return 'Every 2 days'
+    case 'every3':
+      return 'Every 3 days'
+    case 'every4':
+      return 'Every 4 days'
+    case 'every5':
+      return 'Every 5 days'
+    case 'every6':
+      return 'Every 6 days'
+    case 'monthly':
+      return 'Monthly'
+    case 'yearly':
+      return 'Yearly'
+    default:
+      return ''
+  }
 }
 
 export function RemindersScreen({
@@ -43,7 +72,7 @@ export function RemindersScreen({
 
   const doneList = filtered.filter((r) => r.done).length
 
-  const saveReminder = async (draft: { title: string; description: string; date: string; time: string }) => {
+  const saveReminder = async (draft: { title: string; description: string; date: string; time: string; repeat: Reminder['repeat'] }) => {
     const now = new Date().toISOString()
     const next = editing
       ? reminders.map((reminder) =>
@@ -132,7 +161,7 @@ export function RemindersScreen({
               <CheckCircle size={30} />
             </div>
             <h2>No reminders yet</h2>
-            <p className="muted">Set a date & time — your reminder stays encrypted with your vault.</p>
+            <p className="muted">Set a date & time, or repeat it — your reminder stays encrypted with your vault.</p>
             <button type="button" className="btn btn-primary" onClick={() => setEditing(null)}>
               <Plus size={18} /> Add your first reminder
             </button>

@@ -19,6 +19,15 @@ export interface Note {
   updatedAt: string
 }
 
+export type RepeatKind =
+  | 'none'
+  | 'hourly'
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'yearly'
+  | `every${number}`
+
 export interface Reminder {
   id: string
   title: string
@@ -26,6 +35,7 @@ export interface Reminder {
   date: string // YYYY-MM-DD
   time: string // HH:mm
   done: boolean
+  repeat: RepeatKind
   createdAt: string
   updatedAt: string
 }

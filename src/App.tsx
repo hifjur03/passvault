@@ -163,7 +163,10 @@ export default function App() {
       setData({
         entries: vaultData.entries ?? [],
         notes: vaultData.notes ?? [],
-        reminders: vaultData.reminders ?? [],
+        reminders: (vaultData.reminders ?? []).map((reminder) => ({
+          ...reminder,
+          repeat: reminder.repeat ?? 'none',
+        })),
         expenses: vaultData.expenses ?? [],
       })
       setScreen(nextScreen)

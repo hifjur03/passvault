@@ -8,6 +8,7 @@ export interface ReminderDraft {
   description: string
   date: string
   time: string
+  repeat: Reminder['repeat']
 }
 
 interface ReminderModalProps {
@@ -21,6 +22,7 @@ export function ReminderModal({ reminder, onClose, onSave }: ReminderModalProps)
   const [description, setDescription] = useState(reminder?.description ?? '')
   const [date, setDate] = useState(() => reminder?.date ?? new Date().toISOString().slice(0, 10))
   const [time, setTime] = useState(() => reminder?.time ?? '09:00')
+  const [repeat, setRepeat] = useState<Reminder['repeat']>(reminder?.repeat ?? 'none')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -33,7 +35,7 @@ export function ReminderModal({ reminder, onClose, onSave }: ReminderModalProps)
     }
     setBusy(true)
     try {
-      await onSave({ title: title.trim(), description: description.trim(), date, time })
+      await onSave({ title: title.trim(), description: description.trim(), date, time, repeat })
       onClose()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save this reminder.')
@@ -89,6 +91,22 @@ export function ReminderModal({ reminder, onClose, onSave }: ReminderModalProps)
             <input className="input" type="time" value={time} onChange={(event) => setTime(event.target.value)} />
           </label>
         </div>
+        <label className="field">
+          <span>Repeat</span>
+          <select className="input" value={repeat} onChange={(event) => setRepeat(event.target.value as Reminder['repeat'])}>
+            <option value="none">Does not repeat</option>
+            <option value="hourly">Hourly</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="every2">Every 2 days</option>
+            <option value="every3">Every 3 days</option>
+            <option value="every4">Every 4 days</option>
+            <option value="every5">Every 5 days</option>
+            <option value="every6">Every 6 days</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </label>
         {error ? <p className="error-text" role="alert">{error}</p> : null}
       </form>
     </Modal>

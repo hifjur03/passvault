@@ -16,7 +16,7 @@ const notes: Note[] = [
 ]
 
 const reminders: Reminder[] = [
-  { id: 'r1', title: 'Pay electricity', description: '', date: '2026-11-22', time: '18:00', done: false, createdAt: '', updatedAt: '' },
+  { id: 'r1', title: 'Pay electricity', description: '', date: '2026-11-22', time: '18:00', done: false, repeat: 'none', createdAt: '', updatedAt: '' },
 ]
 
 const expenses: Expense[] = [
