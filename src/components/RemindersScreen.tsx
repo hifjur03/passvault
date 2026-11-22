@@ -88,9 +88,13 @@ export function RemindersScreen({
           },
           ...reminders,
         ]
-    await onSaveReminders(next)
-    setEditing(undefined)
-    notify(editing ? 'Reminder updated.' : 'Reminder added.')
+    try {
+      await onSaveReminders(next)
+      setEditing(undefined)
+      notify(editing ? 'Reminder updated.' : 'Reminder added.')
+    } catch {
+      notify('Unlock your vault first to save reminders.', 'error')
+    }
   }
 
   const toggleDone = async (id: string, current: boolean) => {

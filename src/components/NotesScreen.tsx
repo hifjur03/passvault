@@ -51,9 +51,13 @@ export function NotesScreen({
           note.id === editing.id ? { ...note, ...draft, updatedAt: now } : note,
         )
       : [{ id: crypto.randomUUID(), ...draft, createdAt: now, updatedAt: now }, ...notes]
-    await onSaveNotes(next)
-    setEditing(undefined)
-    notify(editing ? 'Note updated.' : 'Note saved.')
+    try {
+      await onSaveNotes(next)
+      setEditing(undefined)
+      notify(editing ? 'Note updated.' : 'Note saved.')
+    } catch {
+      notify('Unlock your vault first to save notes.', 'error')
+    }
   }
 
   const deleteNote = async () => {
