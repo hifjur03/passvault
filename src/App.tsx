@@ -150,7 +150,7 @@ export default function App() {
   }, [userId, reloadNonce])
 
   const finishUnlock = useCallback(
-    async (vaultKey: CryptoKey, vaultRow: VaultRow) => {
+    async (vaultKey: CryptoKey, vaultRow: VaultRow, nextScreen: Screen = 'home') => {
       let vaultData: VaultData = emptyVault()
       if (vaultRow.data && vaultRow.data_iv) {
         vaultData = await decryptJson<VaultData>(vaultKey, {
@@ -166,7 +166,7 @@ export default function App() {
         reminders: vaultData.reminders ?? [],
         expenses: vaultData.expenses ?? [],
       })
-      setScreen('home')
+      setScreen(nextScreen)
       setStatus('unlocked')
     },
     [],
@@ -177,7 +177,7 @@ export default function App() {
     const derived = await deriveMasterKey(password, fromBase64(row.salt), MASTER_ITERATIONS)
     const valid = await verifyKey(derived, { iv: row.verifier_iv, data: row.verifier })
     if (!valid) throw new Error('Incorrect master password.')
-    await finishUnlock(derived, row)
+    await finishUnlock(derived, row, screen)
   }
 
   const unlockWithPin = async (pin: string) => {
@@ -199,7 +199,7 @@ export default function App() {
       const valid = await verifyKey(derived, { iv: row.verifier_iv, data: row.verifier })
       if (!valid) throw new Error('Wrong PIN.')
       resetPinAttempts(userId)
-      await finishUnlock(derived, row)
+      await finishUnlock(derived, row, screen)
     } catch {
       const attempts = recordPinFailure(userId)
       if (attempts >= MAX_PIN_ATTEMPTS) {
@@ -389,14 +389,85 @@ export default function App() {
   }
 
   if (status === 'locked') {
+    // The dashboard is browsable without a password. Only the password manager
+    // asks for the master password / PIN when it is entered.
+    if (screen === 'passwords') {
+      return (
+        <UnlockScreen
+          email={email}
+          hasPin={hasPin}
+          onUnlockMaster={unlockWithMaster}
+          onUnlockPin={unlockWithPin}
+          onResetVault={resetVault}
+          onSignOut={signOut}
+        />
+      )
+    }
+
+    if (screen === 'home') {
+      return (
+        <HomeScreen
+          email={email}
+          entries={data.entries}
+          notes={data.notes}
+          reminders={data.reminders}
+          expenses={data.expenses}
+          onNavigate={navigate}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+      )
+    }
+
+    if (screen === 'notes') {
+      return (
+        <NotesScreen
+          notes={data.notes}
+          onSaveNotes={saveNotes}
+          onBack={() => setScreen('home')}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+          notify={notify}
+        />
+      )
+    }
+
+    if (screen === 'reminders') {
+      return (
+        <RemindersScreen
+          reminders={data.reminders}
+          onSaveReminders={saveReminders}
+          onBack={() => setScreen('home')}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+          notify={notify}
+        />
+      )
+    }
+
+    if (screen === 'expenses') {
+      return (
+        <ExpensesScreen
+          expenses={data.expenses}
+          onSaveExpenses={saveExpenses}
+          onBack={() => setScreen('home')}
+          onLock={lock}
+          onOpenSettings={() => setShowSettings(true)}
+          notify={notify}
+        />
+      )
+    }
+
     return (
-      <UnlockScreen
+      <HomeScreen
         email={email}
-        hasPin={hasPin}
-        onUnlockMaster={unlockWithMaster}
-        onUnlockPin={unlockWithPin}
-        onResetVault={resetVault}
-        onSignOut={signOut}
+        entries={data.entries}
+        notes={data.notes}
+        reminders={data.reminders}
+        expenses={data.expenses}
+        onNavigate={navigate}
+        onLock={lock}
+        onOpenSettings={() => setShowSettings(true)}
       />
     )
   }
