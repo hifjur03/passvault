@@ -3,10 +3,9 @@
 //
 // - Static assets are cached on first use (they have fingerprinted names).
 // - Navigations fall back to the cached shell when offline.
-// - Never caches Supabase API responses (cross-origin → not intercepted).
-// - Bumping CACHE_NAME replaces the previous cache on activation.
+// - Never caches the Supabase API responses (cross-origin).
 
-const CACHE_NAME = 'passvault-shell-v1';
+const CACHE_NAME = 'passvault-shell-v2';
 
 const SHELL_ASSETS = [
   './index.html',
@@ -45,27 +44,31 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
+  // Only our own origin — Supabase calls are always fresh.
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('./index.html')),
+      fetch(request)
+        .catch(() => caches.match('./index.html'))
+        .then((response) => response || caches.match('./index.html')),
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then(
-      (cached) => cached,
-      () =>
-        fetch(request).then((response) => {
-          if (response && response.ok) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, response.clone()).catch(() => {});
-            });
-          }
-          return response;
-        }),
-    ),
+    caches.match(request).then((cached) => {
+      // Cache hit → serve from cache; miss → go to network (then cache).
+      if (cached) return cached;
+      return fetch(request).then((response) => {
+        if (response && response.ok) {
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(request, response.clone()).catch(() => {}))
+            .catch(() => {});
+        }
+        return response;
+      });
+    }),
   );
 });
